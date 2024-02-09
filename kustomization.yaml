@@ -1,24 +1,26 @@
 resources:
-  - all.yaml
+- all.yaml
 generatorOptions:
   disableNameSuffixHash: true
-patchesStrategicMerge:
-  - volumes-coord.yaml -n argocd
-  - volumes-work.yaml -n argocd
-  - svc.yaml -n argocd
 configMapGenerator:
-  - name: cacerts-coord
-    files:
-      - cacerts-coord
-  - name: cacerts-work
-    files:
-      - cacerts-work
+- files:
+  - cacerts-coord
+  name: cacerts-coord
+- files:
+  - cacerts-work
+  name: cacerts-work
 secretGenerator:
-  - name: catalog-minio
-    files:
-      - minio.properties
-      - tpcds.properties
-      - tpch.properties
-  - name: ca-minio
-    files:
-      - public.crt
+- files:
+  - minio.properties
+  - tpcds.properties
+  - tpch.properties
+  name: catalog-minio
+- files:
+  - public.crt
+  name: ca-minio
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+patches:
+- patch: volumes-coord.yaml -n argocd
+- patch: volumes-work.yaml -n argocd
+- patch: svc.yaml -n argocd
