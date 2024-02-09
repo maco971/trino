@@ -21,6 +21,6 @@ secretGenerator:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 patches:
-- patch: volumes-coord.yaml 
-- patch: volumes-work.yaml 
-- patch: svc.yaml 
+- patch: volumes-coord.yaml -n argocd
+- patch: volumes-work.yaml -n argocd
+- patch: svc.yaml -n argocd
