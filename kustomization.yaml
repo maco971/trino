@@ -1,0 +1,24 @@
+resources:
+  - all.yaml
+generatorOptions:
+  disableNameSuffixHash: true
+patchesStrategicMerge:
+  - volumes-coord.yaml
+  - volumes-work.yaml
+  - svc.yaml
+configMapGenerator:
+  - name: cacerts-coord
+    files:
+      - cacerts-coord
+  - name: cacerts-work
+    files:
+      - cacerts-work
+secretGenerator:
+  - name: catalog-minio
+    files:
+      - minio.properties
+      - tpcds.properties
+      - tpch.properties
+  - name: ca-minio
+    files:
+      - public.crt

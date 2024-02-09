@@ -1,0 +1,346 @@
+# Default values for trino.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository: trinodb/trino
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart version.
+  tag: latest
+
+imagePullSecrets:
+  - name: registry-credentials
+
+server:
+  workers: 1
+  node:
+    environment: production
+    dataDir: /data/trino
+    pluginDir: /usr/lib/trino/plugin
+  log:
+    trino:
+      level: INFO
+  config:
+    path: /etc/trino
+    http:
+      port: 8080
+    https:
+      enabled: false
+      port: 8443
+      keystore:
+        path: ""
+    # Trino supports multiple authentication types: PASSWORD, CERTIFICATE, OAUTH2, JWT, KERBEROS
+    # For more info: https://trino.io/docs/current/security/authentication-types.html
+    authenticationType: ""
+    query:
+      maxMemory: "2GB"
+  exchangeManager:
+    name: "filesystem"
+    baseDir: "/tmp/trino-local-file-system-exchange-manager"
+  workerExtraConfig: ""
+  coordinatorExtraConfig: ""
+  autoscaling:
+    enabled: false
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 50
+
+accessControl: {}
+  # type: configmap
+  # refreshPeriod: 60s
+  # # Rules file is mounted to /etc/trino/access-control
+  # configFile: "rules.json"
+  # rules:
+  #   rules.json: |-
+  #     {
+  #       "catalogs": [
+  #         {
+  #           "user": "admin",
+  #           "catalog": "(mysql|system)",
+  #           "allow": "all"
+  #         },
+  #         {
+  #           "group": "finance|human_resources",
+  #           "catalog": "postgres",
+  #           "allow": true
+  #         },
+  #         {
+  #           "catalog": "hive",
+  #           "allow": "all"
+  #         },
+  #         {
+  #           "user": "alice",
+  #           "catalog": "postgresql",
+  #           "allow": "read-only"
+  #         },
+  #         {
+  #           "catalog": "system",
+  #           "allow": "none"
+  #         }
+  #       ],
+  #       "schemas": [
+  #         {
+  #           "user": "admin",
+  #           "schema": ".*",
+  #           "owner": true
+  #         },
+  #         {
+  #           "user": "guest",
+  #           "owner": false
+  #         },
+  #         {
+  #           "catalog": "default",
+  #           "schema": "default",
+  #           "owner": true
+  #         }
+  #       ]
+  #     }
+
+additionalNodeProperties: {}
+
+additionalConfigProperties: {}
+
+additionalLogProperties: {}
+
+additionalExchangeManagerProperties: {}
+
+eventListenerProperties: {}
+
+additionalCatalogs: {}
+
+# Array of EnvVar (https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envvar-v1-core)
+env: []
+
+# Array of EnvFromSource (https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envfromsource-v1-core)
+envFrom: []
+
+initContainers:
+  coordinator:
+    - name: init-coordinator-crt
+      image: joostdecock/keytool
+      imagePullPolicy: IfNotPresent
+      command: ['sh', '-c', "cp /tmp/CA/cacerts /tmp/keystore/cacerts ; keytool -import -trustcacerts -alias minio -noprompt -file /tmp/cert/public.crt -keystore /tmp/keystore/cacerts -storepass changeit"]
+      volumeMounts:
+        - mountPath: /tmp/CA
+          name: cacerts
+        - mountPath: /tmp/cert
+          name: ca-minio 
+        - mountPath: /tmp/keystore
+          name: keystore
+    #- name: init-coordinator-storepass
+    #  image: busybox:1.28
+    #  command: ['sh', '-c', "touch /tmp/newKeyStore"]
+  worker:
+    - name: init-worker-crt
+      image: joostdecock/keytool
+      command: ['sh', '-c', "cp /tmp/CA/cacerts /tmp/keystore/cacerts ; keytool -import -trustcacerts -alias minio -noprompt -file /tmp/cert/public.crt -keystore /tmp/keystore/cacerts -storepass changeit"]
+      volumeMounts:
+        - mountPath: /tmp/CA
+          name: cacerts
+        - mountPath: /tmp/cert
+          name: ca-minio
+        - mountPath: /tmp/keystore
+          name: keystore
+    #- name: init-worker-storepass
+    #  image: busybox:1.28
+    #  command: ['sh', '-c', "touch /tmp/newKeyStore"]
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+
+service:
+  type: NodePort
+  port: 8080
+
+auth: {}
+  # Set username and password
+  # https://trino.io/docs/current/security/password-file.html#file-format
+  # passwordAuth: "username:encrypted-password-with-htpasswd"
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+  # Annotations to add to the service account
+  annotations: {}
+
+secretMounts: []
+  #- name: catalog-minio
+  #  path: /etc/trino/catalog
+  #  secretName: catalog-minio
+
+coordinator:
+  jvm:
+    maxHeapSize: "2G"
+    gcMethod:
+      type: "UseG1GC"
+      g1:
+        heapRegionSize: "32M"
+
+  config:
+    memory:
+      heapHeadroomPerNode: ""
+    query:
+      maxMemoryPerNode: "1GB"
+
+  additionalJVMConfig:
+    - "-Djavax.net.ssl.trustStore=/tmp/keystore/cacerts"
+    - "-Djavax.net.ssl.trustStorePassword=changeit" 
+    - "-Djavax.net.ssl.keystore=/tmp/keystore/cacerts"
+    - "-Djavax.net.ssl.keystorepassword=changeit"
+    - "-DHADOOP_USER_NAME=hive"
+    #- "-Djavax.net.debug=all"
+    #- "-Dmaven.wagon.http.ssl.insecure=true"
+    #- "-Dmaven.wagon.http.ssl.allowall=true"
+  additionalExposedPorts: {}
+
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  livenessProbe: {}
+    # initialDelaySeconds: 20
+    # periodSeconds: 10
+    # timeoutSeconds: 5
+    # failureThreshold: 6
+    # successThreshold: 1
+  readinessProbe: {}
+    # initialDelaySeconds: 20
+    # periodSeconds: 10
+    # timeoutSeconds: 5
+    # failureThreshold: 6
+    # successThreshold: 1
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  additionalConfigFiles: {}
+
+  annotations: {}
+
+  labels: {}
+
+worker:
+  jvm:
+    maxHeapSize: "2G"
+    gcMethod:
+      type: "UseG1GC"
+      g1:
+        heapRegionSize: "32M"
+
+  config:
+    memory:
+      heapHeadroomPerNode: ""
+    query:
+      maxMemoryPerNode: "1GB"
+
+  additionalJVMConfig:
+    - "-Djavax.net.ssl.trustStore=/tmp/keystore/cacerts"
+    - "-Djavax.net.ssl.trustStorePassword=changeit" 
+    - "-Djavax.net.ssl.keystore=/tmp/keystore/cacerts"
+    - "-Djavax.net.ssl.keystorepassword=changeit"
+    - "-DHADOOP_USER_NAME=hive"
+    #- "-Djavax.net.debug=all"
+    #- "-Dmaven.wagon.http.ssl.insecure=true"
+    #- "-Dmaven.wagon.http.ssl.allowall=true"
+  additionalExposedPorts: {}
+
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  livenessProbe: {}
+    # initialDelaySeconds: 20
+    # periodSeconds: 10
+    # timeoutSeconds: 5
+    # failureThreshold: 6
+    # successThreshold: 1
+  readinessProbe: {}
+    # initialDelaySeconds: 20
+    # periodSeconds: 10
+    # timeoutSeconds: 5
+    # failureThreshold: 6
+    # successThreshold: 1
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  additionalConfigFiles: {}
+
+  annotations: {}
+
+  labels: {}
+
+kafka:
+  mountPath: "/etc/trino/schemas"
+  tableDescriptions: {}
+    # Custom kafka table descriptions that will be mounted in mountPath
+    # testschema.json: |-
+    #   {
+    #     "tableName": "testtable",
+    #     "schemaName": "testschema",
+    #     "topicName": "testtopic",
+    #     "key": {
+    #       "dataFormat": "json",
+    #       "fields": [
+    #         {
+    #           "name": "_key",
+    #           "dataFormat": "VARCHAR",
+    #           "type": "VARCHAR",
+    #           "hidden": "false"
+    #         }
+    #       ]
+    #     },
+    #     "message": {
+    #       "dataFormat": "json",
+    #       "fields": [
+    #         {
+    #           "name": "id",
+    #           "mapping": "id",
+    #           "type": "BIGINT"
+    #         },
+    #         {
+    #           "name": "test_field",
+    #           "mapping": "test_field",
+    #           "type": "VARCHAR"
+    #         }
+    #       ]
+    #     }
+    #   }
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts: 
+    - host: k8s-master.acensi.local
+      paths:
+        - path: /datalake/trino
+          pathType: Prefix
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local

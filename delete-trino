@@ -1,0 +1,5 @@
+#!/bin/bash
+
+helm delete trino -n trino
+
+kubectl delete namespaces trino

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino-worker
+spec:
+  template:
+    spec:
+      volumes:
+        - name: cacerts
+          configMap:
+            name: cacerts-work
+            items:
+              - key: cacerts-work
+                path: cacerts
+        - name: catalog-minio
+          secret:
+            defaultMode: 420
+            secretName: catalog-minio
+        - name: ca-minio
+          secret:
+            secretName: ca-minio
+        - name: keystore
+      containers:
+        - name: trino-worker
+          volumeMounts:
+            - mountPath: /tmp/CA
+              name: cacerts
+            - mountPath: /etc/trino/catalog
+              name: catalog-minio
+            - mountPath: /tmp/cert
+              name: ca-minio
+            - mountPath: /tmp/keystore
+              name: keystore

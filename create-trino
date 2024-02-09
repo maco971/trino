@@ -1,0 +1,8 @@
+#!/bin/bash
+kubectl create namespace trino
+
+helm repo add trino https://trinodb.github.io/charts
+
+openssl s_client -showcerts -connect k8s-master.acensi.local:30098 </dev/null | sed -n -e '/-.BEGIN/,/-.END/ p' > public.crt
+
+helm install trino trino/trino -n trino -f values.yaml --post-renderer ./kustomize.sh
