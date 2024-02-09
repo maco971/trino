@@ -2,7 +2,7 @@ resources:
   - all.yaml
 generatorOptions:
   disableNameSuffixHash: true
-patchesStrategicMerge:
+patches:
   - volumes-coord.yaml
   - volumes-work.yaml
   - svc.yaml
