@@ -3,9 +3,9 @@ resources:
 generatorOptions:
   disableNameSuffixHash: true
 patchesStrategicMerge:
-  - volumes-coord.yaml
-  - volumes-work.yaml
-  - svc.yaml
+  - volumes-coord.yaml -n argocd
+  - volumes-work.yaml -n argocd
+  - svc.yaml -n argocd
 configMapGenerator:
   - name: cacerts-coord
     files:
