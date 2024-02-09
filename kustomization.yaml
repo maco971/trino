@@ -1,3 +1,5 @@
+metadata: 
+  namespace: trino
 resources:
 - all.yaml
 generatorOptions:
